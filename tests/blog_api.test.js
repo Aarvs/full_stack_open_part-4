@@ -1,9 +1,7 @@
-// const mongoose = require("mongoose");
 const supertest = require("supertest");
 const helper = require("./test_helper");
 const app = require("../app");
 const Blog = require("../models/blog");
-// const { error } = require("../utils/logger");
 
 const api = supertest(app);
 
@@ -133,4 +131,23 @@ test("Updating the likes property of a targeted blog", async () => {
     .expect((res) => {
       expect(res.body.likes).toBe(updatedLikes.likes);
     });
+});
+
+describe("testing users", () => {
+  test("Invalid users are not created and expect a bad request status code and an error message", async () => {
+    const invalidUser = {
+      username: "pi",
+      password: "3",
+    };
+    await api
+      .post("/api/users")
+      .send(invalidUser)
+      .expect(400)
+      .expect("Content-Type", /application\/json/);
+    expect((res) => {
+      expect(res.body.error).toBe(
+        "UserName and Password must be atleast 3 characters long"
+      );
+    });
+  });
 });
