@@ -3,15 +3,6 @@ const blogsRouter = require("express").Router();
 const Blog = require("../models/blog");
 const User = require("../models/user");
 
-const getTokenFrom = (req) => {
-  const authorization = req.get("authorization");
-  if (authorization && authorization.startsWith("Bearer ")) {
-    console.log("Gets authorzation header");
-    return authorization.replace("Bearer ", "");
-  }
-  return null;
-};
-
 blogsRouter.get("/", async (req, res) => {
   const blogs = await Blog.find({}).populate("user", { userName: 1, name: 1 });
   res.json(blogs);
@@ -19,13 +10,15 @@ blogsRouter.get("/", async (req, res) => {
 
 blogsRouter.post("/", async (req, res) => {
   const body = req.body;
+  const user = req.user;
 
-  const decodedToken = jwt.verify(getTokenFrom(req), process.env.SECRET);
+  const decodedToken = jwt.verify(req.token, process.env.SECRET);
   if (!decodedToken.id) {
     return res.status(401).json({ error: "token invalid" });
   }
 
-  const user = await User.findById(decodedToken.id);
+  // const user = await User.findById(decodedToken.id);
+  console.log(user);
 
   const blog = new Blog({
     title: body.title,
@@ -43,9 +36,29 @@ blogsRouter.post("/", async (req, res) => {
 });
 
 blogsRouter.delete("/:id", async (req, res) => {
-  const id = req.params.id;
-  const blogToDelete = await Blog.findByIdAndDelete(id);
-  res.status(204).json(blogToDelete);
+  const blogId = req.params.id;
+  const user = req.user;
+  const decodedToken = jwt.verify(req.token, process.env.SECRET);
+
+  if (!decodedToken.id) {
+    return res.status(401).json({ error: "Token missing or invalid" });
+  }
+
+  const userId = decodedToken.id;
+  const blog = await Blog.findById(blogId).populate("user", { _id: 1 });
+
+  if (!blog) {
+    return res.status(404).json({ error: "Blog not found" });
+  }
+
+  // Check if the user making the request is the owner of the blog
+  // if (!blog.user || blog.user._id.toString() !== userId) {
+  //   return res.status(403).json({ error: "Permission denied" });
+  // }
+
+  // Delete the blog
+  await Blog.findByIdAndRemove(blogId);
+  res.status(204).end();
 });
 
 blogsRouter.put("/:id", async (req, res) => {
