@@ -9,7 +9,7 @@ const requestLogger = (req, res, next) => {
   next();
 };
 
-const errorHandler = (error, res, next) => {
+const errorHandler = (error, req, res, next) => {
   console.error(error.message);
   if (error.message === "CastError") {
     return res.status(400).send({ error: "malformatted id" });
@@ -23,8 +23,9 @@ const errorHandler = (error, res, next) => {
   next(error);
 };
 
-const tokenExtractor = (req, res, next) => {
-  const authorization = req.get("authorization");
+const tokenExtractor = async (req, res, next) => {
+  const authorization = await req.get("authorization");
+  console.log(authorization);
   if (authorization && authorization.startsWith("Bearer ")) {
     console.log("Gets authorization header");
     req.token = authorization.replace("Bearer ", "");

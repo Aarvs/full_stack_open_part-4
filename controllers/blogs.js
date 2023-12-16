@@ -10,27 +10,35 @@ blogsRouter.get("/", async (req, res) => {
 
 blogsRouter.post("/", async (req, res) => {
   const body = req.body;
-  const user = req.user;
+  // const user = req.user;
 
   const decodedToken = jwt.verify(req.token, process.env.SECRET);
   if (!decodedToken.id) {
     return res.status(401).json({ error: "token invalid" });
   }
 
-  // const user = await User.findById(decodedToken.id);
+  const user = await User.findById(decodedToken.id);
   console.log(user);
 
   const blog = new Blog({
     title: body.title,
     url: body.url,
     likes: body.likes,
-    user: user._id,
+    user: user,
   });
   const savedBlog = await blog.save();
 
   // Update the user's blogs
   user.blogs = user.blogs.concat(savedBlog._id);
   await user.save();
+
+  // Send the populated blog data in the response
+  const populatedBlog = await savedBlog
+    .populate({
+      path: "user",
+      select: "userName name",
+    })
+    .execPopulate();
 
   res.status(201).json(savedBlog);
 });
@@ -51,12 +59,6 @@ blogsRouter.delete("/:id", async (req, res) => {
     return res.status(404).json({ error: "Blog not found" });
   }
 
-  // Check if the user making the request is the owner of the blog
-  // if (!blog.user || blog.user._id.toString() !== userId) {
-  //   return res.status(403).json({ error: "Permission denied" });
-  // }
-
-  // Delete the blog
   await Blog.findByIdAndRemove(blogId);
   res.status(204).end();
 });
