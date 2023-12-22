@@ -10,37 +10,37 @@ blogsRouter.get("/", async (req, res) => {
 
 blogsRouter.post("/", async (req, res) => {
   const body = req.body;
-  // const user = req.user;
 
-  const decodedToken = jwt.verify(req.token, process.env.SECRET);
-  if (!decodedToken.id) {
-    return res.status(401).json({ error: "token invalid" });
+  try {
+    const decodedToken = jwt.verify(req.token, process.env.SECRET);
+    if (!decodedToken.id) {
+      return res.status(401).json({ error: "token invalid" });
+    }
+
+    const user = await User.findById(decodedToken.id);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const blog = new Blog({
+      title: body.title,
+      url: body.url,
+      likes: body.likes,
+      user: user._id,
+    });
+
+    const savedBlog = await blog.save();
+
+    // Update the user's blogs
+    user.blogs = user.blogs.concat(savedBlog._id);
+    await user.save();
+
+    res.status(201).json(savedBlog);
+  } catch (error) {
+    // Handle other types of errors
+    console.error("Error creating blog:", error.message);
+    res.status(500).json({ error: "Internal Server Error" });
   }
-
-  const user = await User.findById(decodedToken.id);
-  console.log(user);
-
-  const blog = new Blog({
-    title: body.title,
-    url: body.url,
-    likes: body.likes,
-    user: user,
-  });
-  const savedBlog = await blog.save();
-
-  // Update the user's blogs
-  user.blogs = user.blogs.concat(savedBlog._id);
-  await user.save();
-
-  // Send the populated blog data in the response
-  const populatedBlog = await savedBlog
-    .populate({
-      path: "user",
-      select: "userName name",
-    })
-    .execPopulate();
-
-  res.status(201).json(savedBlog);
 });
 
 blogsRouter.delete("/:id", async (req, res) => {
